@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.NoticeMapper">
+	<select id="getList" resultType="com.mannajob.domain.NoticeVO">
+		select * from notice where n_del = 'N' order by n_num desc
+	</select>
+	
+	<select id="getListWithPaging" resultType="com.mannajob.domain.NoticeVO">
+		<![CDATA[
+		select n_num, n_subject, ad_id, n_contents, n_cnt, n_wdate, n_udate, n_del
+		from (
+			select /*+ index_desc(notice pk_n) */
+			rownum rn,  n_num, n_subject, ad_id, n_contents, n_cnt, n_wdate, n_udate, n_del
+			from notice
+			where rownum <= #{pageNum} * #{amount} and n_del = 'N')
+		where rn > (#{pageNum} - 1) * #{amount}
+		]]>
+	</select>
+	
+	<insert id="insert">
+		insert into notice (n_num, n_subject, ad_id, n_contents, n_cnt, n_wdate, n_udate, n_del) 
+				values (seq_n.nextval, #{n_subject}, #{ad_id}, #{n_contents}, 0, sysdate, sysdate, 'N')
+	</insert>
+	
+	<insert id="insertSel">
+		<selectKey keyProperty="n_num" order="BEFORE" resultType="int">
+			select seq_n.nextval from dual
+		</selectKey>
+			insert into notice (n_num, n_subject, ad_id, n_contents, n_cnt, n_wdate, n_udate, n_del) 
+				values (#{n_num}, #{n_subject}, #{ad_id}, #{n_contents}, 0, sysdate, sysdate, 'N')
+	</insert>
+	
+	<select id="read" resultType="com.mannajob.domain.NoticeVO">
+		select * from notice where n_num = #{n_num}
+	</select>
+	
+	<update id="readUpCount">
+		update notice set n_cnt = n_cnt+1 where n_num = #{n_num}
+	</update>
+	
+	<update id="delete">
+		update notice set n_del = 'Y' where n_num = #{n_num}
+	</update>
+	
+	<update id="update">
+		update notice set n_subject = #{n_subject}, n_contents = #{n_contents}, n_udate = sysdate where n_num = #{n_num}
+	</update>
+	
+	<select id="getTotalCount" resultType="int">
+		select count(n_num) from notice where n_del = 'N'
+	</select>
+</mapper>

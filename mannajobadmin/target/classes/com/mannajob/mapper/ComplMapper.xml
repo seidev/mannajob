@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.ComplMapper">
+
+	<insert id="insert">
+		insert into compl(c_num,m_id,c_category,c_why,board_num) values(seq_c.nextval,#{m_id},#{c_category},#{c_why},#{board_num})
+	</insert>
+	
+	<select id="getListWithPaging" resultType="com.mannajob.domain.ComplVO">
+		<![CDATA[
+		select c_num,m_id,c_category,c_why,board_num,c_state,c_wdate		
+		from (
+			select /*+ index_desc(BMatch pk_b) */
+			rownum rn, c_num,c.m_id,b.m_id board_id,c_category,c_why,board_num,c_state,c_wdate 
+			from compl c, b_match b
+			where rownum <= #{cri.pageNum} * #{cri.amount} and b.b_num=c.board_num and b_category like '%'||#{b_category}||'%')
+		where rn > (#{cri.pageNum} - 1) * #{cri.amount}
+		]]>
+	</select>
+	
+	<select id="getTotalB" resultType="int">
+		select count(c_num) from compl c, b_match b where b.b_num = c.board_num and b_category like '%'||#{b_category}||'%'
+	</select>
+	
+	<select id="getItem" resultType="com.mannajob.domain.ComplVO">
+		select c_num, c.m_id, c_category, c_why, board_num, c_state, c_wdate from compl c where m_id = #{m_id}
+		
+	</select>
+	
+	<update id="update">
+		update compl set
+			c_why = #{c_why} where c_num=#{c_num}
+	</update>
+	
+	<update id="StateChange">
+		update compl set c_state = #{c_state} where c_num = #{c_num}
+	</update>
+	
+	<!-- 관리자 악성회원 신고 관리 
+	<select id="getList" resultType="com.mannajob.domain.ComplVO">
+		select * from compl  order by c_num desc
+	</select>
+	 -->
+	 
+ 	<resultMap type="com.mannajob.domain.ComplVO" id="ComplVO">
+ 		<result property="c_num" column="c_num"/>
+		<result property="m_id" column="m_id"/>
+		<result property="c_why" column="c_why" />
+		<result property="board_num" column="board_num" />
+		<result property="c_state" column="c_state"/>
+	<!-- 	<collection property="emplVO" resultMap="memEmplVO" />  -->
+	</resultMap>
+	<select id="getComplListWithPaging" resultMap="ComplVO">
+		select c_num, m_id, c_why, board_num, c_state from 
+		(select /*+ index_desc(compl pk_c) */
+		rownum rn, c_num, c.m_id, c.c_why, c.board_num, c.c_state from compl c LEFT JOIN empl e 
+		ON c.m_id = e.m_id WHERE
+		<choose>
+			<when test="'All'.equals(search.searchType)">
+			</when>
+			<when test="''.equals(search.searchType)">
+			</when>
+			<when test="'Worker'.equals(search.searchType)">
+				e_num IS NOT NULL AND
+			</when>
+			<when test="'Seeker'.equals(search.searchType)">
+				e_num IS NULL AND
+			</when>
+		</choose>
+		<![CDATA[
+		rownum <= ${cri.pageNum} * ${cri.amount}
+		]]>
+		<if test="#{search.keyword} != null || #{search.keyword} != ''">
+			AND c.m_id LIKE '%'||#{search.keyword}||'%'
+		</if>
+			)
+		<![CDATA[
+			where rn > (${cri.pageNum} - 1) * ${cri.amount}
+		]]>
+	</select> 
+	<!-- 총 회원 수 -->
+	<select id="getTotalCount" resultType="int">
+		select count(c.c_num) from compl c LEFT JOIN empl e
+		ON c.m_id = e.m_id
+		<choose>
+			<when test="search.keyword != null">
+				WHERE c.m_id LIKE '%'||#{search.keyword}||'%'
+				<choose>
+					<when test="'All'.equals(search.searchType)">
+					</when>
+					<when test="''.equals(search.searchType)">
+					</when>
+					<when test="'Worker'.equals(search.searchType)">
+						AND e.e_num IS NOT NULL
+					</when>
+					<when test="'Seeker'.equals(search.searchType)">
+						AND e.e_num IS NULL
+					</when>
+				</choose>
+			</when>
+			<otherwise>
+				<choose>
+					<when test="'All'.equals(search.searchType)">
+					</when>
+					<when test="''.equals(search.searchType)">
+					</when>
+					<when test="'Worker'.equals(search.searchType)">
+						WHERE e_num IS NOT NULL
+					</when>
+					<when test="'Seeker'.equals(search.searchType)">
+						WHERE e_num IS NULL
+					</when>
+				</choose>
+			</otherwise>
+		</choose>
+	</select>
+	<update id="stopdate">
+		update member set m_stop = sysdate+30 where m_id = #{m_id}
+	</update>
+	<update id="changestate">
+		update compl set c_state = #{c_state} where c_num = #{c_num}
+	</update>
+</mapper>

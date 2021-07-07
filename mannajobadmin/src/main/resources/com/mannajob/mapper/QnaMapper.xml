@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.QnaMapper">
+	<select id="getList" resultType="com.mannajob.domain.QnaVO">
+		select q.q_num, q_category, m_id, q_contents, q_wdate, q_udate, q_del, q_subject
+				,(select count(qs.q_num) from qna_sub qs where q.q_num = qs.q_num and qs.qs_del = 'N') as reply_chk from qna q where q_del = 'N' order by q.q_num desc
+	</select>
+	
+	<select id="getListWithPaging" resultType="com.mannajob.domain.QnaVO">
+		<![CDATA[
+		select q_num, q_category, m_id, q_contents, q_wdate, q_udate, q_del, q_subject, reply_chk
+		from (
+			select /*+ index_desc(q pk_q) */
+					rownum rn, q.q_num, q_category, m_id, q_contents, q_wdate, q_udate, q_del, q_subject
+					,(select count(qs.q_num) from qna_sub qs where q.q_num = qs.q_num and qs.qs_del = 'N') as reply_chk
+			from qna q
+			where rownum <= #{pageNum} * #{amount} and q_del = 'N')
+		where rn > (#{pageNum} - 1) * #{amount}
+		]]>
+	</select>
+	
+	<insert id="insert">
+		insert into qna (q_num, q_category, m_id, q_contents, q_wdate, q_udate, q_del, q_subject) 
+				values (seq_q.nextval, #{q_category}, #{m_id}, #{q_contents}, sysdate, sysdate, 'N', #{q_subject})
+	</insert>
+	
+	<insert id="insertSel">
+		<selectKey keyProperty="q_num" order="BEFORE" resultType="int">
+			select seq_q.nextval from dual
+		</selectKey>
+			insert into qna (q_num, q_category, m_id, q_contents, q_wdate, q_udate, q_del, q_subject) 
+				values (#{q_num}, #{q_category}, #{m_id}, #{q_contents}, sysdate, sysdate, 'N', #{q_subject})
+	</insert>
+	
+	<insert id="insertSub">
+		insert into qna_sub (qs_num, q_num, ad_id, qs_contents, qs_wdate, qs_udate, qs_del) 
+				values (seq_qs.nextval, #{q_num}, #{ad_id}, #{qs_contents}, sysdate, sysdate, 'N')
+	</insert>
+	
+	<select id="read" resultType="com.mannajob.domain.QnaVO">
+		select * from qna q,(select * from qna_sub where q_num = #{q_num} and qs_del = 'N')qs where q.q_num = qs.q_num(+) and q.q_num=#{q_num}
+	</select>
+	
+	<update id="delete">
+		update qna set q_del = 'Y' where q_num = #{q_num}
+	</update>
+	
+	<update id="deleteSub">
+		update qna_sub set qs_del = 'Y', qs_udate = sysdate where qs_num = #{qs_num}
+	</update>
+	
+	<update id="update">
+		update qna set q_subject = #{q_subject}, q_contents = #{q_contents}, q_category = #{q_category}, q_udate = sysdate where q_num = #{q_num}
+	</update>
+	
+	<update id="updateSub">
+		update qna_sub set qs_contents = #{qs_contents}, qs_udate = sysdate where qs_num = #{qs_num}
+	</update>
+	
+	<select id="getTotalCount" resultType="int">
+		select count(q_num) from qna where q_del = 'N'
+	</select>
+	
+	<select id="chkQnaSub" resultType="int">
+		select count(q_num) from qna_sub where q_num = ${q_num} and qs_del = 'N'
+	</select>
+</mapper>

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.MatchMapper">
+	<resultMap type="com.mannajob.domain.MatchVO" id="Match">
+		<result property="mat_num" column="mat_num"/>
+		<result property="b_num" column="b_num"/>
+		<result property="m_id" column="m_id"/>
+		<result property="mat_hour" column="mat_hour"/>
+		<result property="mat_stdate" column="mat_stdate"/>
+		<result property="mat_wdate" column="mat_wdate"/>
+		<result property="mat_okdate" column="mat_okdate"/>
+		<result property="mat_state" column="mat_state"/>
+	</resultMap>
+	
+	<resultMap type="com.mannajob.domain.ReviewVO" id="Review">
+		<result property="r_num" column="r_num"/>
+		<result property="r_contents" column="r_contents"/>
+		<result property="mat_num" column="mat_num"/>
+		<result property="r_w_m_id" column="r_w_m_id"/>
+		<result property="r_mat_m_id" column="r_mat_m_id"/>
+		<result property="r_del" column="r_del"/>
+	</resultMap>
+	
+	<resultMap type="com.mannajob.domain.BMatchVO" id="BMatch">
+		<result property="b_num" column="b_num"/>
+		<result property="b_category" column="b_category"/>
+		<result property="m_id" column="m_id"/>
+		<result property="b_corp" column="b_corp"/>
+		<result property="b_task" column="b_task"/>
+		<result property="b_price" column="b_price"/>
+		<result property="b_location" column="b_location"/>
+		<result property="b_stdate" column="b_stdate"/>
+		<result property="b_endate" column="b_endate"/>
+		<result property="b_period" column="b_period"/>
+		<result property="b_del" column="b_del"/>
+		<result property="b_state" column="b_state"/>
+		<result property="b_subject" column="b_subject"/>
+		<result property="b_wdate" column="b_wdate"/>
+		<result property="b_contents" column="b_contents"/>
+		<collection property="matchVO" resultMap="Match"/>
+		<collection property="reviewVO" resultMap="Review"/>
+	</resultMap>
+
+	<!-- 매칭 작성 내역 조회 -->
+	<select id="searchBMat" resultType="com.mannajob.domain.BMatchVO">
+		SELECT b_num, b_subject, b_state FROM b_match WHERE m_id = #{m_id}
+	</select>
+	
+	<!-- 매칭 신청 현황 -->
+	<select id="searchBmatMat" resultType="com.mannajob.domain.MatchVO">
+		SELECT mat_num, mat_stdate, mat_hour, m_id FROM match WHERE b_num = #{b_num} and mat_state='A' order by mat_num
+	</select>
+	
+	<!-- 매칭글 작성 내역 조회  -->
+	<select id="searchWMat" resultMap="BMatch">
+	<![CDATA[
+		select * from
+		(
+		select rownum rn,  b_num,b_subject, b_state, m_id, r_num, r_contents, r_w_m_id, r_mat_m_id 
+		from (
+			select /*+ index_desc(match pk_mat) */
+			b.b_num, b.b_subject, b.b_state, re.m_id, re.r_num, re.r_contents, re.r_w_m_id, re.r_mat_m_id 
+			from b_match b left join (SELECT m.b_num, r.r_num, r.r_contents, m.m_id, r.r_w_m_id, r.r_mat_m_id FROM match m LEFT JOIN review r ON m.mat_num = r.mat_num where r.r_w_m_id = #{m_id} and r.r_del = 'N' order by m.b_num desc) re on b.b_num = re.b_num
+			where  b.m_id = #{m_id} ORDER BY b_num DESC)
+		where  rownum <= #{cri.pageNum} * #{cri.amount}) 
+		where rn > (#{cri.pageNum} - 1) * #{cri.amount}
+		]]>
+	</select>
+	
+	<!-- 매칭 신청 내역 조회-->
+	<select id="searchMat" resultType="com.mannajob.domain.BMatchReviewVO">
+	<![CDATA[
+		select * from
+		(
+		select rownum rn, mat_num, b_subject, mat_state, m_id, r_num, r_contents, r_w_m_id, r_mat_m_id 
+		from (
+			select /*+ index_desc(match pk_mat) */
+			m.mat_num, b.b_subject, m.mat_state, b.m_id, r.r_num, r.r_contents, r.r_w_m_id, r.r_mat_m_id  
+			from b_match b, match m LEFT JOIN review r ON m.mat_num = r.mat_num AND r_w_m_id = #{m_id} AND r.r_del = 'N' 
+			where b.b_num = m.b_num AND m.m_id = #{m_id} ORDER BY m.mat_num DESC)
+		where rownum <= #{scri.pageNumP} * #{scri.amountP} )
+		where rn > (#{scri.pageNumP} - 1) * #{scri.amountP}
+		]]>
+	</select>
+	
+	
+	<!-- 매칭글 작성  -->
+    <insert id="insert">
+    	insert into match(mat_num,b_num, m_id, mat_hour, mat_stdate) values(seq_mat.nextval,#{b_num},#{m_id},#{mat_hour},#{mat_stdate})
+    </insert>
+    <!-- 매칭글 시간 변경  -->
+    <update id= "updateTime">
+    	update match set
+    		mat_stdate = #{mat_stdate}, mat_hour = #{mat_hour}
+    		where b_num = #{b_num} and m_id = #{m_id}
+    </update>
+    <!-- 매칭 거절 -->
+    <update id = "reject">
+    	update match set
+    	 mat_state = 'B'
+    	 where mat_num = #{mat_num}
+    </update>
+    <!-- 내칭 완료시  나머지 내용 거절을 위한 매퍼  -->
+    <update id = "rejectother">
+    	update match set
+    	mat_state = 'B'
+    	where b_num = #{b_num} and m_id != #{m_id} and mat_state = 'A'
+    </update>
+    <!-- 매칭글 작성 내역 조회  -->
+    <update id = "finish">
+    	update match set mat_state = 'C',mat_okdate = sysdate where mat_num = #{mat_num} and mat_state='A'
+    </update>
+    <!-- 매칭글 작성 내역 조회  -->
+    <update id = "cancel">
+    	update match set
+    	 mat_state = 'D'
+    	 where mat_num = #{mat_num}
+    </update>
+    <select id="checkWrite" resultType="int">
+    	select count(mat_num) from match where b_num = #{b_num} and m_id = #{m_id}
+    </select>
+    <select id="findfinalMat" resultType="com.mannajob.domain.MatchVO">
+    	select mat_num, b_num, m_id, mat_hour, mat_stdate,mat_wdate,mat_okdate,mat_state from match where b_num=#{b_num} and mat_state='C'
+    </select>
+    
+    <!--  특정한 매칭 넘버 찾기 (매칭신청한 아이디, 게시판 번호로 조회) -->
+    <select id="checkmat_num" resultType="int">
+    	select mat_num from match where b_num = #{b_num} and m_id = #{m_id} and rownum = 1 order by m_wdate;
+    </select>
+    <!-- 한 게시글에 대한 매칭 글 전체 검색(취소는 제외) -->
+    <select id = "getbMatchMatlist" resultType="com.mannajob.domain.MatchVO">
+    	select mat_num, b_num, m_id, mat_hour, mat_stdate,mat_wdate,mat_okdate,mat_state from match where b_num = #{b_num}
+    </select> 
+    	<select id="getMatlistPaging" resultType="com.mannajob.domain.MatchVO">
+		<![CDATA[
+		select mat_num, b_num, m_id, mat_hour, mat_stdate, mat_wdate, mat_okdate, mat_state 
+		from (
+			select /*+ index_desc(match pk_mat) */
+			rownum rn, mat_num, b_num, m_id, mat_hour, mat_stdate, mat_wdate, mat_okdate, mat_state 
+			from match
+			where rownum <= #{cri.pageNum} * #{cri.amount} and (mat_state = 'A' or mat_state='B') and b_num=#{b_num})
+		where rn > (#{cri.pageNum} - 1) * #{cri.amount}
+		]]>
+	</select>
+    <select id = "getTotalCountItem" resultType="int">
+     	select count(mat_num) from match where  b_num = #{b_num}
+    </select>
+    <select id = "matchfinalCount" resultType="int">
+    	select count(mat_num) from match where  b_num = #{b_num} and mat_state='C'
+    </select>
+    <select id="getPersionTotalCount" resultType="int">
+    	select count(mat_num) from match where  m_id = #{m_id}
+    </select>
+    <select id="getListBMatch" resultType="com.mannajob.domain.MyScheduleVO">
+    	select b.b_num, m.mat_num,b.b_category,b.m_id w_m_id, m.m_id,m.mat_hour,m.mat_stdate,m.mat_state,mat_okdate
+    		from b_match b, match m
+    		 where b.b_num = m.b_num and b.m_id=#{m_id} and m.mat_state='C' and b.m_id != m.m_id and mat_stdate like #{yearmonth}||'%' order by mat_stdate,mat_hour
+    </select>
+    <select id="getListMatch" resultType="com.mannajob.domain.MyScheduleVO">
+    	select b.b_num, m.mat_num,b.b_category,b.m_id w_m_id, b.m_id,m.mat_hour,m.mat_stdate,m.mat_state,mat_okdate
+    		from b_match b, match m
+    		where b.b_num = m.b_num and m.m_id=#{m_id} and m.mat_state='C' and b.m_id != m.m_id and mat_stdate like #{yearmonth}||'%' order by mat_stdate,mat_hour
+    </select>
+   	<select id="getDailycount" resultType="int">
+		select count(mat_num) from match where mat_okdate like (sysdate + ${daygap}) and mat_state='C'
+	</select>
+</mapper>

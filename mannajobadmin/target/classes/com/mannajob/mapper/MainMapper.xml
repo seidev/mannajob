@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.MainMapper">
+	<!-- 현직자 프로필 검색 -->
+	<resultMap type="com.mannajob.domain.MemberVO" id="memVO">
+		<result property="m_name" column="m_name"/>
+	</resultMap>
+	<resultMap type="com.mannajob.domain.FileVO" id="fileVO">
+		<result property="stored_file_name" column="stored_file_name"/>
+	</resultMap>
+	<resultMap type="com.mannajob.domain.EmplVO" id="emplVO">
+		<id property="e_num" column="e_num"/>
+		<result property="m_id" column="m_id"/>
+		<result property="e_corp" column="e_corp"/>
+		<result property="e_career" column="e_career" />
+		<result property="e_task" column="e_task"/>
+		<association property="memVO" resultMap="memVO"></association>
+		<association property="fileVO" resultMap="fileVO"></association>
+	</resultMap>
+	
+	<!-- 현직자 매칭글 검색 -->
+	<resultMap type="com.mannajob.domain.BMatchVO" id="bmatchVO">
+		<result property="b_num" column="b_num"/>
+		<result property="b_subject" column="b_subject"/>
+		<result property="b_stdate" column="b_stdate"/>
+		<result property="b_endate" column="b_endate"/>
+		<result property="b_price" column="b_price"/>
+		<result property="b_task" column="b_task"/>
+		<result property="b_corp" column="b_corp"/>
+		<result property="b_location" column="b_location"/>
+	</resultMap>
+	
+	<select id="searchEmplMat" resultMap="bmatchVO">
+		SELECT b_num, b_subject, b_stdate, b_endate, b_price, b_task, b_corp, b_location
+		FROM b_match
+		WHERE b_category = 'A' AND b_subject = '%'||#{b_subject}||'%' AND b_task = '%'||#{b_task}||'%' AND b_corp = '%'||#{b_corp}||'%' AND b_location = '%'||#{b_location}||'%' 
+	</select>
+	
+	<!-- 현직자 검색 -->
+	<select id="searchEmpl" resultMap="emplVO">
+		SELECT f.stored_file_name, m.m_name, e.e_corp, e.e_career, e.e_task
+		FROM m_file f, member m, empl e
+		WHERE f.e_num = e.e_num AND m.m_id = e.m_id AND m.m_id = #{m_id} AND f.f_category = 'I'
+	</select>
+	
+	<!-- 좋아요 수 -->
+	<select id="searchGood" resultType="int">
+		SELECT count(r_good) as countG 
+		FROM review
+		WHERE r_mat_m_id = #{m_id} AND r_good = 'G'
+	</select>
+	
+	<!-- 현직자 좋아요 순위 -->
+	<select id="searchRank" resultType="List">
+		SELECT r.r_mat_m_id
+		FROM empl e, review r
+		WHERE e.m_id = r.r_mat_m_id AND r.r_good = 'G' GROUP BY r.r_mat_m_id ORDER BY count(r.r_good) DESC
+	</select>
+	
+	<!-- 총 매칭 건수 -->
+	<select id="totalMat" resultType="int">
+		SELECT count(b.b_num) as countM
+		FROM b_match b, match m
+		WHERE b.b_num = m.b_num AND (b.m_id = #{m_id} or m.m_id = #{m_id}) AND (b.b_state = 'B' AND m.mat_state = 'C') AND b.m_id != m.m_id
+	</select>
+	
+	<!-- best mento info -->
+	<select id="bestMento" resultType="com.mannajob.domain.BestVO">
+		SELECT m_id, m_name, stored_file_name, e_corp, e_task, count as countG
+		FROM (SELECT m.m_id as m_id, m.m_name as m_name, f.stored_file_name as stored_file_name, e.e_corp as e_corp, e.e_task as e_task, count(r.r_good) as count 
+			FROM member m, m_file f, empl e, review r
+			WHERE m.m_id = e.m_id AND f.e_num = e.e_num AND m.m_id = r.r_mat_m_id AND r.r_good = 'G' AND f.f_category = 'I'
+			GROUP BY m.m_id, m.m_name, f.stored_file_name, e.e_corp, e.e_task ORDER BY count(r.r_good) DESC)
+		WHERE <![CDATA[rownum <= 5]]>
+	</select>
+	
+</mapper>

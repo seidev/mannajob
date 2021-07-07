@@ -1,0 +1,20 @@
+.chart-bar{
+    position:relative;
+    height:10rem;
+    width:100%;
+}
+@media (min-width:768px){
+    .chart-bar{
+        height:30rem;
+    }
+}
+.chart-bar2{
+    position:relative;
+    height:10rem;
+    width:30%;
+}
+@media (min-width:768px){
+    .chart-bar2{
+        height:15rem;
+    }
+}

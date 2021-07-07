@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.MemberMapper">
+	<select id="LoginSelect" resultType="int">
+		SELECT COUNT(m_id) FROM member WHERE m_id = #{m_id} and m_passwd = #{m_passwd} and m_del = 'N'
+	</select>
+	
+	<select id="SecretLogin" resultType="com.mannajob.domain.MemberVO">
+		SELECT m_id, m_passwd FROM member WHERE m_id = #{m_id}
+	</select>
+</mapper>

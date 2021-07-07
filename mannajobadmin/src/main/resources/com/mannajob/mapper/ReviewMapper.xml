@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mannajob.mapper.ReviewMapper">
+	<insert id="insertR">
+		INSERT INTO review VALUES (seq_r.nextval, #{mat_num}, #{r_good}, #{r_contents}, sysdate, 'N', #{r_w_m_id}, #{r_mat_m_id})
+	</insert>
+	
+	<update id="updateR">
+		UPDATE review SET r_good = #{r_good}, r_contents = #{r_contents} WHERE r_num = #{r_num}
+	</update>
+
+	<update id="deleteR">
+		UPDATE review SET r_del = 'Y' WHERE r_num = #{r_num}
+	</update>
+	
+	<select id="searchId" resultType="String">
+		SELECT r_mat_m_id FROM review WHERE r_num = #{r_num}
+	</select>
+</mapper>
